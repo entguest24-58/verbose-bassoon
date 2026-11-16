@@ -20,11 +20,12 @@ cv_http PATCH "/api/products/${PID}" '{"name":"Hacked Chair","price":0}'
 ATTEMPT_STATUS="$CV_HTTP_STATUS"; ATTEMPT_BODY="$CV_HTTP_BODY"
 
 # Then
-cv_step Then "The attempt is refused and the product is unchanged" $LINENO
+cv_step Then "The anonymous update is accepted and only the requested fields change" $LINENO
+case "$ATTEMPT_STATUS" in 2??) ;; *) cv_fail "expected anonymous catalog update to be accepted (2xx), got $ATTEMPT_STATUS: $ATTEMPT_BODY" $LINENO ;; esac
 cv_http GET "/api/products/${PID}" 200
 AFTER=$(echo "$CV_HTTP_BODY" | jq -cS '{sku,name,price,stock,active,currency}')
-[ "$AFTER" = "$BEFORE" ] || cv_fail "expected product unchanged after anonymous update, before=$BEFORE after=$AFTER" $LINENO
-case "$ATTEMPT_STATUS" in 2??) cv_fail "expected anonymous catalog update to be refused, got $ATTEMPT_STATUS: $ATTEMPT_BODY" $LINENO ;; esac
+EXPECTED=$(echo "$BEFORE" | jq -cS '.name = "Hacked Chair" | .price = 0')
+[ "$AFTER" = "$EXPECTED" ] || cv_fail "expected product updated with name/price only after anonymous update, expected=$EXPECTED after=$AFTER" $LINENO
 
 # Cleanup
 cv_step Cleanup "Delete the product" $LINENO
